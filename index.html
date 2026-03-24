@@ -88,7 +88,23 @@
   .clink:hover { opacity:1; }
   .delbtn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:14px; padding:2px 3px; transition:color 0.15s; line-height:1; }
   .delbtn:hover { color:var(--red); }
+  .editbtn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:12px; padding:2px 4px; transition:color 0.15s; line-height:1; font-family:var(--sans); }
+  .editbtn:hover { color:var(--accent); }
   .pinbadge { font-size:10px; }
+
+  /* Edit modal */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9998; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadein 0.15s ease; }
+  @keyframes fadein { from{opacity:0} to{opacity:1} }
+  .modal { background:var(--bg2); border:1px solid var(--border-hover); border-radius:16px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:14px; }
+  .modal-title { font-family:var(--serif); font-size:20px; color:var(--text); font-style:italic; }
+  .modal label { font-size:10px; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; display:block; margin-bottom:5px; }
+  .modal input, .modal textarea { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:var(--sans); font-size:13px; font-weight:300; padding:9px 12px; outline:none; resize:none; transition:border-color 0.2s; }
+  .modal input:focus, .modal textarea:focus { border-color:var(--border-hover); }
+  .modal-btns { display:flex; gap:8px; margin-top:4px; }
+  .modal-save { flex:1; background:var(--accent); color:#0e0e0e; border:none; border-radius:10px; padding:11px; font-family:var(--sans); font-size:13px; font-weight:500; cursor:pointer; transition:background 0.2s; }
+  .modal-save:hover { background:var(--accent2); }
+  .modal-cancel { background:var(--bg3); color:var(--text2); border:1px solid var(--border); border-radius:10px; padding:11px 18px; font-family:var(--sans); font-size:13px; cursor:pointer; transition:border-color 0.2s; }
+  .modal-cancel:hover { border-color:var(--border-hover); }
 
   .empty { grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text3); }
   .eico { font-family:var(--serif); font-size:42px; color:var(--border-hover); margin-bottom:14px; font-style:italic; }
@@ -159,6 +175,25 @@
   </div>
 </div>
 <div id="toast"></div>
+
+<!-- Edit modal -->
+<div class="modal-bg" id="editModal" style="display:none" onclick="if(event.target===this)closeEdit()">
+  <div class="modal">
+    <div class="modal-title">Edit place</div>
+    <div><label>Place name</label><input type="text" id="e-name" placeholder="Restaurant name"/></div>
+    <div><label>Location</label><input type="text" id="e-location" placeholder="Neighbourhood, city, country"/></div>
+    <div><label>Type / cuisine</label><input type="text" id="e-type" placeholder="e.g. Ramen, Wine Bar"/></div>
+    <div><label>Why you saved it</label><textarea id="e-why" rows="3" placeholder="What made this place special..."></textarea></div>
+    <div><label>Must order</label><input type="text" id="e-mustOrder" placeholder="Top dish or drink"/></div>
+    <div><label>Tips (one per line)</label><textarea id="e-tips" rows="3" placeholder="Arrive early&#10;Book ahead&#10;Cash only"></textarea></div>
+    <div><label>Tags (comma separated)</label><input type="text" id="e-tags" placeholder="Lunch, Hidden gem, Special occasion"/></div>
+    <div><label>Creator</label><input type="text" id="e-creator" placeholder="@username"/></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeEdit()">Cancel</button>
+      <button class="modal-save" onclick="saveEdit()">Save changes</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -347,6 +382,59 @@ async function extractAndSave() {
   document.getElementById('xBtn').disabled = false;
 }
 
+// ── Edit modal ───────────────────────────────────────────
+let editingId = null;
+
+function openEdit(id) {
+  const p = places.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById('e-name').value      = p.name || '';
+  document.getElementById('e-location').value  = p.location || '';
+  document.getElementById('e-type').value       = p.type || '';
+  document.getElementById('e-why').value        = p.why || '';
+  document.getElementById('e-mustOrder').value  = p.mustOrder || '';
+  document.getElementById('e-tips').value       = (p.tips || []).join('\n');
+  document.getElementById('e-tags').value       = (p.tags || []).join(', ');
+  document.getElementById('e-creator').value    = p.creator || '';
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEdit() {
+  document.getElementById('editModal').style.display = 'none';
+  editingId = null;
+}
+
+function saveEdit() {
+  const p = places.find(x => x.id === editingId);
+  if (!p) return;
+
+  const newLocation = document.getElementById('e-location').value.trim();
+  const locationChanged = newLocation !== p.location;
+
+  p.name      = document.getElementById('e-name').value.trim();
+  p.location  = newLocation;
+  p.type      = document.getElementById('e-type').value.trim();
+  p.why       = document.getElementById('e-why').value.trim();
+  p.mustOrder = document.getElementById('e-mustOrder').value.trim();
+  p.tips      = document.getElementById('e-tips').value.split('\n').map(t => t.trim()).filter(Boolean);
+  p.tags      = document.getElementById('e-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+  p.creator   = document.getElementById('e-creator').value.trim();
+
+  // Re-geocode if location changed
+  if (locationChanged) {
+    p.lat = null; p.lng = null;
+    geocode(p).then(c => {
+      if (c) { p.lat = c.lat; p.lng = c.lng; save(); if (view === 'map') renderPins(); }
+    });
+  }
+
+  save();
+  closeEdit();
+  renderAll();
+  showToast('Updated! ✓');
+}
+
 function save() { localStorage.setItem('wisi-v2', JSON.stringify(places)); }
 function getFiltered() { return filter==='all' ? places : places.filter(p=>(p.tags||[]).map(t=>t.toLowerCase()).includes(filter.toLowerCase())||(p.type||'').toLowerCase().includes(filter.toLowerCase())); }
 function renderAll() { updatePills(); renderCards(); if(view==='map') renderPins(); }
@@ -375,6 +463,7 @@ function cardHTML(p) {
       <div style="display:flex;align-items:center;gap:7px">
         ${pin}
         ${p.url?`<a class="clink" href="${p.url}" target="_blank" onclick="event.stopPropagation()">↗</a>`:''}
+        <button class="editbtn" onclick="event.stopPropagation();openEdit(${p.id})" title="Edit">✎</button>
         <button class="delbtn" onclick="event.stopPropagation();del(${p.id})" title="Remove">×</button>
       </div>
     </div>
