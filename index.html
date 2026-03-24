@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why I Saved It</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0e0e0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SavedIt">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0e0e0e; --bg2:#161616; --bg3:#1e1e1e;
+    --border:rgba(255,255,255,0.08); --border-hover:rgba(255,255,255,0.18);
+    --text:#f0ede6; --text2:#9a9589; --text3:#5a5650;
+    --accent:#e8c97a; --accent2:#c4a558; --red:#e87a7a; --teal:#7ac4b8;
+    --serif:'Instrument Serif',Georgia,serif; --sans:'DM Sans',sans-serif;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); font-weight:300; min-height:100vh; overflow-x:hidden; }
+
+  #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--bg3); border:1px solid var(--border-hover); border-radius:99px; padding:10px 20px; font-size:13px; color:var(--text); z-index:9999; transition:transform 0.3s; pointer-events:none; white-space:nowrap; }
+  #toast.show { transform:translateX(-50%) translateY(0); }
+
+  #shareBanner { display:none; background:rgba(122,196,184,0.1); border-bottom:1px solid rgba(122,196,184,0.25); padding:11px 24px; font-size:12px; color:var(--teal); align-items:center; gap:10px; }
+  #shareBanner.visible { display:flex; }
+  #shareBanner .x { margin-left:auto; cursor:pointer; font-size:16px; opacity:0.6; }
+  #installBanner { display:none; background:rgba(232,201,122,0.08); border-bottom:1px solid rgba(232,201,122,0.2); padding:10px 24px; font-size:12px; color:var(--accent); align-items:center; gap:10px; flex-wrap:wrap; }
+  #installBanner.visible { display:flex; }
+  #iBtn { background:var(--accent); color:#0e0e0e; border:none; border-radius:99px; padding:4px 13px; font-size:11px; font-weight:500; cursor:pointer; font-family:var(--sans); }
+
+  header { padding:22px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .logo { font-family:var(--serif); font-size:24px; color:var(--text); letter-spacing:-0.5px; }
+  .logo em { color:var(--accent); font-style:italic; }
+  .tagline { font-size:11px; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; }
+  .vtog { margin-left:auto; display:flex; gap:2px; background:var(--bg3); border-radius:10px; padding:3px; border:1px solid var(--border); }
+  .vbtn { background:none; border:none; color:var(--text3); font-family:var(--sans); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; transition:all 0.15s; }
+  .vbtn.active { background:var(--bg2); color:var(--text); border:1px solid var(--border); }
+
+  .app { display:grid; grid-template-columns:340px 1fr; height:calc(100vh - 65px); overflow:hidden; }
+  .panel { border-right:1px solid var(--border); padding:22px 20px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
+  .ptitle { font-family:var(--serif); font-size:14px; color:var(--text2); font-style:italic; }
+  .notice { background:rgba(232,201,122,0.07); border:1px solid rgba(232,201,122,0.2); border-radius:10px; padding:10px 12px; font-size:11px; color:var(--accent); line-height:1.6; }
+  .notice strong { font-weight:500; display:block; margin-bottom:2px; }
+  label { font-size:10px; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; display:block; margin-bottom:5px; }
+  input, textarea { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:var(--sans); font-size:12px; font-weight:300; padding:9px 12px; transition:border-color 0.2s; outline:none; resize:none; }
+  input:focus, textarea:focus { border-color:var(--border-hover); }
+  input::placeholder, textarea::placeholder { color:var(--text3); }
+  .field { display:flex; flex-direction:column; }
+  .btn { width:100%; background:var(--accent); color:#0e0e0e; border:none; border-radius:10px; padding:11px; font-family:var(--sans); font-size:13px; font-weight:500; cursor:pointer; transition:background 0.2s,transform 0.1s; }
+  .btn:hover { background:var(--accent2); }
+  .btn:active { transform:scale(0.98); }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+  .status { font-size:11px; color:var(--text2); text-align:center; min-height:16px; font-style:italic; }
+  .status.err { color:var(--red); font-style:normal; }
+  .div { height:1px; background:var(--border); flex-shrink:0; }
+  .pills { display:flex; flex-wrap:wrap; gap:5px; }
+  .pill { font-size:10px; padding:4px 10px; border-radius:99px; border:1px solid var(--border); color:var(--text2); cursor:pointer; transition:all 0.15s; background:transparent; font-family:var(--sans); }
+  .pill:hover { border-color:var(--border-hover); color:var(--text); }
+  .pill.on { background:var(--accent); color:#0e0e0e; border-color:var(--accent); font-weight:500; }
+  .cnt { font-size:10px; color:var(--text3); margin-top:3px; }
+
+  .content { overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .cview { padding:22px 26px; overflow-y:auto; flex:1; }
+  .cview h2 { font-family:var(--serif); font-size:12px; color:var(--text3); font-style:italic; margin-bottom:14px; font-weight:400; }
+  .cgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); gap:11px; }
+
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:15px; display:flex; flex-direction:column; gap:9px; transition:border-color 0.2s,transform 0.2s; animation:fu 0.4s ease both; cursor:pointer; }
+  .card:hover { border-color:var(--border-hover); transform:translateY(-2px); }
+  .card.hl { border-color:var(--accent); }
+  @keyframes fu { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .ctop { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .cname { font-family:var(--serif); font-size:17px; color:var(--text); line-height:1.2; }
+  .ctype { font-size:10px; padding:2px 8px; border-radius:99px; background:rgba(232,201,122,0.1); color:var(--accent); border:1px solid rgba(232,201,122,0.2); white-space:nowrap; flex-shrink:0; }
+  .cloc { font-size:11px; color:var(--text3); display:flex; align-items:center; gap:4px; }
+  .cloc::before { content:''; display:inline-block; width:4px; height:4px; border-radius:50%; background:var(--text3); flex-shrink:0; }
+  .cwhy { font-size:12px; color:var(--text2); line-height:1.6; font-style:italic; border-left:2px solid var(--border); padding-left:10px; }
+  .ctips { display:flex; flex-direction:column; gap:4px; }
+  .tip { font-size:11px; color:var(--teal); display:flex; align-items:flex-start; gap:6px; line-height:1.4; }
+  .tip::before { content:'→'; flex-shrink:0; }
+  .ctags { display:flex; flex-wrap:wrap; gap:4px; }
+  .tag { font-size:10px; padding:2px 8px; border-radius:99px; background:var(--bg3); color:var(--text3); border:1px solid var(--border); }
+  .cfoot { display:flex; justify-content:space-between; align-items:center; padding-top:7px; border-top:1px solid var(--border); }
+  .clink { font-size:11px; color:var(--accent); text-decoration:none; opacity:0.7; transition:opacity 0.15s; }
+  .clink:hover { opacity:1; }
+  .delbtn { background:none; border:none; color:var(--text3); cursor:pointer; font-size:14px; padding:2px 3px; transition:color 0.15s; line-height:1; }
+  .delbtn:hover { color:var(--red); }
+  .pinbadge { font-size:10px; }
+
+  .empty { grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text3); }
+  .eico { font-family:var(--serif); font-size:42px; color:var(--border-hover); margin-bottom:14px; font-style:italic; }
+  .empty p { font-size:13px; line-height:1.7; }
+  .lcard { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:15px; display:flex; flex-direction:column; gap:9px; }
+  .sh { background:linear-gradient(90deg,var(--bg3) 0%,var(--bg2) 50%,var(--bg3) 100%); background-size:200% 100%; animation:sh 1.4s infinite; border-radius:8px; height:12px; }
+  @keyframes sh { to{background-position:-200% 0} }
+
+  /* Map */
+  #mview { display:none; flex:1; position:relative; }
+  #mview.on { display:flex; flex-direction:column; }
+  #map { flex:1; min-height:400px; }
+  .leaflet-container { background:#1a1a1a !important; }
+  .leaflet-tile { filter:brightness(0.82) saturate(0.6) hue-rotate(180deg) invert(1); }
+  .leaflet-popup-content-wrapper { background:var(--bg2) !important; border:1px solid var(--border-hover) !important; border-radius:12px !important; box-shadow:0 8px 32px rgba(0,0,0,0.6) !important; color:var(--text) !important; font-family:var(--sans) !important; padding:0 !important; }
+  .leaflet-popup-content { margin:0 !important; width:230px !important; }
+  .leaflet-popup-tip { background:var(--bg2) !important; }
+  .leaflet-popup-close-button { color:var(--text3) !important; font-size:16px !important; top:8px !important; right:10px !important; }
+  .pi { padding:13px 15px; }
+  .pn { font-family:var(--serif); font-size:16px; color:var(--text); margin-bottom:3px; }
+  .pl { font-size:11px; color:var(--text3); margin-bottom:7px; }
+  .pw { font-size:11px; color:var(--text2); line-height:1.55; font-style:italic; border-left:2px solid var(--border); padding-left:8px; margin-bottom:7px; }
+  .po { font-size:11px; color:var(--accent); margin-bottom:7px; }
+  .pf { display:flex; gap:8px; align-items:center; padding-top:7px; border-top:1px solid var(--border); }
+  .map-msg { position:absolute; top:12px; left:50%; transform:translateX(-50%); background:var(--bg3); border:1px solid var(--border); border-radius:99px; padding:6px 14px; font-size:11px; color:var(--text2); z-index:999; white-space:nowrap; pointer-events:none; display:none; }
+
+  @media(max-width:768px){
+    .app{grid-template-columns:1fr;height:auto;overflow:visible}
+    .panel{height:auto;border-right:none;border-bottom:1px solid var(--border)}
+    .content{height:80vh}
+    header{padding:16px 18px}
+    .cview{padding:14px}
+    .vtog{margin-left:0}
+  }
+</style>
+</head>
+<body>
+
+<div id="shareBanner"><span>📲 Video shared — URL pre-filled below!</span><span class="x" onclick="this.parentElement.classList.remove('visible')">×</span></div>
+<div id="installBanner"><span>📱 Install as an app to save directly from TikTok's share sheet</span><button id="iBtn" onclick="installPWA()">Install</button><span style="margin-left:auto;cursor:pointer;opacity:0.5;font-size:16px" onclick="dismissInstall()">×</span></div>
+
+<header>
+  <div class="logo">Why I <em>Saved</em> It</div>
+  <div class="tagline">Remember every place, every reason</div>
+  <div class="vtog">
+    <button class="vbtn active" id="btnC" onclick="setView('cards')">Cards</button>
+    <button class="vbtn" id="btnM" onclick="setView('map')">Map</button>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="panel">
+    <p class="ptitle">Paste a video, remember why it mattered.</p>
+
+    <div class="field"><label>Video URL</label><input type="url" id="vurl" placeholder="https://tiktok.com/..." onblur="autofillFromUrl(this.value)"/></div>
+    <div id="fetchStatus" style="font-size:11px;color:var(--teal);min-height:14px;margin-top:-8px;font-style:italic"></div>
+    <div class="field"><label>What did the video say?</label><textarea id="vdesc" rows="4" placeholder="Paste the caption or describe what the creator said — the dish, the vibe, any tips..."></textarea></div>
+    <div class="field"><label>Creator (optional)</label><input type="text" id="vcreator" placeholder="@foodwith_mat"/></div>
+    <button class="btn" id="xBtn" onclick="extractAndSave()">Extract & Save Place</button>
+    <div class="status" id="status"></div>
+    <div class="div"></div>
+    <div><label>Filter by vibe</label><div class="pills" id="filters"><button class="pill on" onclick="setFilter('all',this)">All</button></div><div class="cnt" id="cntLabel"></div></div>
+  </aside>
+
+  <div class="content">
+    <div class="cview" id="cview"><h2>Your saved places</h2><div class="cgrid" id="cgrid"></div></div>
+    <div id="mview"><div class="map-msg" id="mmsg">Some places couldn't be pinned — check cards view</div><div id="map"></div></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let places = JSON.parse(localStorage.getItem('wisi-v2') || '[]');
+let filter = 'all', view = 'cards', map = null, markers = {}, dip = null;
+
+// PWA
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); dip = e;
+  if (!localStorage.getItem('wisi-nodip')) document.getElementById('installBanner').classList.add('visible');
+});
+function installPWA() { if (!dip) return; dip.prompt(); dip.userChoice.then(()=>{ dip=null; document.getElementById('installBanner').classList.remove('visible'); }); }
+function dismissInstall() { localStorage.setItem('wisi-nodip','1'); document.getElementById('installBanner').classList.remove('visible'); }
+
+// oEmbed autofill — fires when user pastes a TikTok URL and clicks away
+async function autofillFromUrl(url) {
+  if (!url || !url.includes('tiktok.com')) return;
+  const fs = document.getElementById('fetchStatus');
+  fs.textContent = 'Fetching caption from TikTok…';
+  try {
+    const endpoint = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(endpoint)}`;
+    const res = await fetch(proxy);
+    const wrapper = await res.json();
+    const data = JSON.parse(wrapper.contents);
+    const descField = document.getElementById('vdesc');
+    const creatorField = document.getElementById('vcreator');
+    if (data.title && !descField.value) {
+      descField.value = data.title;
+      fs.textContent = 'Caption auto-filled ✓';
+    } else {
+      fs.textContent = 'URL detected — add context below';
+    }
+    if (data.author_name && !creatorField.value) {
+      creatorField.value = '@' + data.author_name;
+    }
+    setTimeout(() => { fs.textContent = ''; }, 3000);
+  } catch(e) {
+    fs.textContent = 'Could not auto-fill — paste the caption manually';
+    setTimeout(() => { fs.textContent = ''; }, 3000);
+  }
+}
+
+// Share target
+function handleShare() {
+  const p = new URLSearchParams(location.search);
+  const u=p.get('url')||'', t=p.get('text')||'', ti=p.get('title')||'';
+  if (u||t) {
+    if (u) document.getElementById('vurl').value=u;
+    if (t) document.getElementById('vdesc').value=t;
+    else if (ti) document.getElementById('vdesc').value=ti;
+    document.getElementById('shareBanner').classList.add('visible');
+    history.replaceState({},'',' /');
+  }
+}
+
+// View toggle
+function setView(v) {
+  view = v;
+  document.getElementById('cview').style.display = v==='cards' ? '' : 'none';
+  const mv = document.getElementById('mview');
+  mv.classList.toggle('on', v==='map');
+  document.getElementById('btnC').classList.toggle('active', v==='cards');
+  document.getElementById('btnM').classList.toggle('active', v==='map');
+  if (v==='map') { initMap(); renderPins(); }
+}
+
+// Map
+function initMap() {
+  if (map) return;
+  map = L.map('map', {zoomControl:true}).setView([30, 10], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>', maxZoom:19
+  }).addTo(map);
+  window.mkIco = L.divIcon({ className:'', html:`<div style="width:13px;height:13px;background:#e8c97a;border-radius:50%;border:2px solid #0e0e0e;box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>`, iconSize:[13,13], iconAnchor:[6,6], popupAnchor:[0,-8] });
+}
+
+async function geocode(p) {
+  if (p.lat && p.lng) return {lat:p.lat, lng:p.lng};
+  const q = [p.name, p.location].filter(Boolean).join(', ');
+  if (!q) return null;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {headers:{'Accept-Language':'en','User-Agent':'WhyISavedIt/1.0'}});
+    const d = await r.json();
+    if (d.length) return {lat:parseFloat(d[0].lat), lng:parseFloat(d[0].lon)};
+  } catch(e){}
+  return null;
+}
+
+async function renderPins() {
+  if (!map) return;
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  const fil = getFiltered();
+  let noPin = false;
+  const bounds = [];
+  for (const p of fil) {
+    const c = await geocode(p);
+    if (!c) { noPin=true; continue; }
+    if (!p.lat) { p.lat=c.lat; p.lng=c.lng; save(); }
+    const mk = L.marker([c.lat,c.lng], {icon:window.mkIco}).addTo(map).bindPopup(mkPopup(p));
+    markers[p.id] = mk;
+    bounds.push([c.lat, c.lng]);
+  }
+  if (bounds.length) map.fitBounds(bounds, {padding:[40,40], maxZoom:13});
+  document.getElementById('mmsg').style.display = noPin ? 'block' : 'none';
+}
+
+function mkPopup(p) {
+  return `<div class="pi">
+    <div class="pn">${p.name||'?'}</div>
+    ${p.location?`<div class="pl">${p.location}</div>`:''}
+    ${p.why?`<div class="pw">${p.why}</div>`:''}
+    ${p.mustOrder?`<div class="po">Order: ${p.mustOrder}</div>`:''}
+    <div class="pf">
+      ${p.creator?`<span style="font-size:10px;color:var(--text3)">${p.creator}</span>`:''}
+      ${p.url?`<a style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7" href="${p.url}" target="_blank">↗ video</a>`:''}
+    </div>
+  </div>`;
+}
+
+function flyTo(id) {
+  const p = places.find(x=>x.id===id);
+  if (!p||!p.lat) { showToast('No map pin yet — try again after saving'); return; }
+  setView('map');
+  setTimeout(()=>{ if(markers[id]){map.flyTo([p.lat,p.lng],15,{duration:1.1}); markers[id].openPopup();} }, 120);
+}
+
+// Extract
+async function extractAndSave() {
+  const url  = document.getElementById('vurl').value.trim();
+  const desc = document.getElementById('vdesc').value.trim();
+  const creator = document.getElementById('vcreator').value.trim();
+  if (!desc && !url) return setStatus('Please add the video URL or a description.', true);
+
+  setStatus('Extracting...', false);
+  document.getElementById('xBtn').disabled = true;
+  showLoadingCard();
+
+  try {
+    const r = await fetch('/.netlify/functions/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, description: desc, creator })
+    });
+    const p = await r.json();
+    if (p.error) throw new Error(p.error);
+    p.id = Date.now();
+    p.url = url||null;
+    p.creator = creator||null;
+    p.savedAt = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    places.unshift(p);
+    save();
+    document.getElementById('vurl').value = '';
+    document.getElementById('vdesc').value = '';
+    document.getElementById('vcreator').value = '';
+    setStatus('', false);
+    showToast('Saved! ✓');
+    renderAll();
+    // Geocode in background
+    geocode(p).then(c => { if(c){p.lat=c.lat;p.lng=c.lng;save();if(view==='map')renderPins();} });
+  } catch(e) {
+    setStatus('Error: '+e.message, true);
+    document.getElementById('loading-card')?.remove();
+    if (!places.length) renderCards();
+  }
+  document.getElementById('xBtn').disabled = false;
+}
+
+function save() { localStorage.setItem('wisi-v2', JSON.stringify(places)); }
+function getFiltered() { return filter==='all' ? places : places.filter(p=>(p.tags||[]).map(t=>t.toLowerCase()).includes(filter.toLowerCase())||(p.type||'').toLowerCase().includes(filter.toLowerCase())); }
+function renderAll() { updatePills(); renderCards(); if(view==='map') renderPins(); }
+
+function renderCards() {
+  const g = document.getElementById('cgrid');
+  const fil = getFiltered();
+  document.getElementById('cntLabel').textContent = `${fil.length} place${fil.length!==1?'s':''}`;
+  if (!fil.length) { g.innerHTML=`<div class="empty"><div class="eico">"</div><p>${filter==='all'?'No places saved yet.<br>Paste a video link on the left.':'No places match this filter.'}</p></div>`; return; }
+  g.innerHTML = fil.map(cardHTML).join('');
+}
+
+function cardHTML(p) {
+  const tips=(p.tips||[]).filter(Boolean).slice(0,2).map(t=>`<div class="tip">${t}</div>`).join('');
+  const tags=(p.tags||[]).filter(Boolean).map(t=>`<span class="tag">${t}</span>`).join('');
+  const mo=p.mustOrder?`<div class="tip" style="color:var(--accent)">Order: ${p.mustOrder}</div>`:'';
+  const pin=p.lat?`<span class="pinbadge" title="On map" style="color:var(--teal)">📍</span>`:`<span class="pinbadge" title="No pin yet" style="color:var(--text3);opacity:0.4">📍</span>`;
+  return `<div class="card" id="card-${p.id}" onclick="flyTo(${p.id})">
+    <div class="ctop"><div class="cname">${p.name||'?'}</div>${p.type?`<span class="ctype">${p.type}</span>`:''}</div>
+    ${p.location?`<div class="cloc">${p.location}</div>`:''}
+    ${p.why?`<div class="cwhy">${p.why}</div>`:''}
+    ${mo||tips?`<div class="ctips">${mo}${tips}</div>`:''}
+    ${tags?`<div class="ctags">${tags}</div>`:''}
+    <div class="cfoot">
+      <div style="display:flex;flex-direction:column;gap:2px">${p.creator?`<span style="font-size:10px;color:var(--text3)">${p.creator}</span>`:''}<span style="font-size:10px;color:var(--text3)">${p.savedAt}</span></div>
+      <div style="display:flex;align-items:center;gap:7px">
+        ${pin}
+        ${p.url?`<a class="clink" href="${p.url}" target="_blank" onclick="event.stopPropagation()">↗</a>`:''}
+        <button class="delbtn" onclick="event.stopPropagation();del(${p.id})" title="Remove">×</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updatePills() {
+  const tags = new Set();
+  places.forEach(p=>{ (p.tags||[]).forEach(t=>tags.add(t)); if(p.type) tags.add(p.type); });
+  const row = document.getElementById('filters');
+  const extra=[...tags].slice(0,12).map(t=>`<button class="pill${filter===t?' on':''}" onclick="setFilter('${t}',this)">${t}</button>`).join('');
+  row.innerHTML=`<button class="pill${filter==='all'?' on':''}" onclick="setFilter('all',this)">All</button>${extra}`;
+}
+
+function setFilter(f,el) {
+  filter=f;
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  renderCards();
+  if(view==='map') renderPins();
+}
+
+function del(id) {
+  if(markers[id]){map?.removeLayer(markers[id]);delete markers[id];}
+  places=places.filter(p=>p.id!==id); save(); renderAll(); showToast('Removed');
+}
+
+function showToast(m) {
+  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function showLoadingCard() {
+  const g=document.getElementById('cgrid');
+  const el=document.createElement('div'); el.className='lcard'; el.id='loading-card';
+  el.innerHTML='<div class="sh" style="width:55%;height:16px"></div><div class="sh" style="width:30%;height:10px"></div><div class="sh" style="width:100%;height:10px"></div><div class="sh" style="width:88%;height:10px"></div>';
+  g.querySelector('.empty')?.remove(); g.prepend(el);
+}
+
+function setStatus(m,e){const el=document.getElementById('status');el.textContent=m;el.className='status'+(e?' err':'');}
+
+// Demo data
+function seed() {
+  if (places.length) return;
+  places = [
+    {id:1,name:"Bao Soho",location:"Soho, London, UK",type:"Taiwanese",why:"The trotter nuggets are unlike anything else in London — impossibly crispy, melt-in-your-mouth inside. The creator called it 'a life-changing £6.'",tips:["Queue opens at 12, arrive 15 mins early","Cash only"],mustOrder:"Trotter nuggets + classic bao",tags:["Lunch","Queue expected","Cheap eats"],creator:"@londonfoodfinds",url:null,savedAt:"12 Mar 2026",lat:51.5131,lng:-0.1310},
+    {id:2,name:"Akoko",location:"Fitzrovia, London, UK",type:"West African",why:"West African fine dining done right — the suya lamb is the most technically impressive dish in London right now.",tips:["Book 3 weeks ahead","Tasting menu is worth it"],mustOrder:"Suya lamb",tags:["Special occasion","Fine dining"],creator:"@thefoodiefiles",url:null,savedAt:"8 Mar 2026",lat:51.5194,lng:-0.1415},
+    {id:3,name:"Café Pouchkine",location:"9th arrondissement, Paris, France",type:"Patisserie",why:"Russian patisserie in Paris that nobody talks about. The honey cake is layered 15 times and tastes like a childhood you never had.",tips:["Go on a weekday","Savoury items are underrated"],mustOrder:"Medovik honey cake",tags:["Breakfast","Pastry","Hidden gem"],creator:"@parisbylocals",url:null,savedAt:"2 Mar 2026",lat:48.8738,lng:2.3311}
+  ];
+  save();
+}
+
+seed(); handleShare(); renderAll();
+</script>
+</body>
+</html>

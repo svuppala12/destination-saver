@@ -1,0 +1,4 @@
+[[redirects]]
+  from = "/share-target"
+  to = "/index.html"
+  status = 200
