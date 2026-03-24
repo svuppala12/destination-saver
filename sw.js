@@ -21,8 +21,15 @@ self.addEventListener('activate', e => {
 
 // Fetch — serve from cache, fall back to network
 self.addEventListener('fetch', e => {
-  // Let share-target requests through to the page
-  if (e.request.url.includes('/share-target')) return;
+  const url = e.request.url;
+
+  // Always pass these straight to the network — never intercept
+  if (url.includes('/share-target')) return;
+  if (url.includes('/.netlify/')) return;
+  if (url.includes('nominatim.openstreetmap.org')) return;
+  if (url.includes('allorigins.win')) return;
+  if (url.includes('tiktok.com/oembed')) return;
+  if (e.request.method !== 'GET') return;
 
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
