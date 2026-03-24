@@ -1,7 +1,7 @@
 {
-  "name": "Why I Saved It",
-  "short_name": "SavedIt",
-  "description": "Remember every place, every reason",
+  "name": "Spotvault",
+  "short_name": "Spotvault",
+  "description": "Every place has a story",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e0e0e",
