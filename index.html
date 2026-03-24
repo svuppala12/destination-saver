@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Why I Saved It</title>
+<title>Spotvault</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0e0e0e">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="SavedIt">
+<meta name="apple-mobile-web-app-title" content="Spotvault">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -144,11 +144,11 @@
 <body>
 
 <div id="shareBanner"><span>📲 Video shared — URL pre-filled below!</span><span class="x" onclick="this.parentElement.classList.remove('visible')">×</span></div>
-<div id="installBanner"><span>📱 Install as an app to save directly from TikTok's share sheet</span><button id="iBtn" onclick="installPWA()">Install</button><span style="margin-left:auto;cursor:pointer;opacity:0.5;font-size:16px" onclick="dismissInstall()">×</span></div>
+<div id="installBanner"><span>📱 Install Spotvault to save directly from TikTok's share sheet</span><button id="iBtn" onclick="installPWA()">Install</button><span style="margin-left:auto;cursor:pointer;opacity:0.5;font-size:16px" onclick="dismissInstall()">×</span></div>
 
 <header>
-  <div class="logo">Why I <em>Saved</em> It</div>
-  <div class="tagline">Remember every place, every reason</div>
+  <div class="logo">Spot<em>vault</em></div>
+  <div class="tagline">Every place has a story</div>
   <div class="vtog">
     <button class="vbtn active" id="btnC" onclick="setView('cards')">Cards</button>
     <button class="vbtn" id="btnM" onclick="setView('map')">Map</button>
@@ -157,7 +157,7 @@
 
 <div class="app">
   <aside class="panel">
-    <p class="ptitle">Paste a video, remember why it mattered.</p>
+    <p class="ptitle">Drop a video. Remember the story.</p>
 
     <div class="field"><label>Video URL</label><input type="url" id="vurl" placeholder="https://tiktok.com/..." onblur="autofillFromUrl(this.value)"/></div>
     <div id="fetchStatus" style="font-size:11px;color:var(--teal);min-height:14px;margin-top:-8px;font-style:italic"></div>
@@ -197,7 +197,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-let places = JSON.parse(localStorage.getItem('wisi-v2') || '[]');
+let places = JSON.parse(localStorage.getItem('spotvault-v1') || '[]');
 let filter = 'all', view = 'cards', map = null, markers = {}, dip = null;
 
 // PWA
@@ -295,7 +295,7 @@ async function geocode(p) {
   const q = [p.name, p.location].filter(Boolean).join(', ');
   if (!q) return null;
   try {
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {headers:{'Accept-Language':'en','User-Agent':'WhyISavedIt/1.0'}});
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {headers:{'Accept-Language':'en','User-Agent':'WhyISpotvault/1.0'}});
     const d = await r.json();
     if (d.length) return {lat:parseFloat(d[0].lat), lng:parseFloat(d[0].lon)};
   } catch(e){}
@@ -435,7 +435,7 @@ function saveEdit() {
   showToast('Updated! ✓');
 }
 
-function save() { localStorage.setItem('wisi-v2', JSON.stringify(places)); }
+function save() { localStorage.setItem('spotvault-v1', JSON.stringify(places)); }
 function getFiltered() { return filter==='all' ? places : places.filter(p=>(p.tags||[]).map(t=>t.toLowerCase()).includes(filter.toLowerCase())||(p.type||'').toLowerCase().includes(filter.toLowerCase())); }
 function renderAll() { updatePills(); renderCards(); if(view==='map') renderPins(); }
 
