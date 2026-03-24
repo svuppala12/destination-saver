@@ -174,33 +174,51 @@ window.addEventListener('beforeinstallprompt', e => {
 function installPWA() { if (!dip) return; dip.prompt(); dip.userChoice.then(()=>{ dip=null; document.getElementById('installBanner').classList.remove('visible'); }); }
 function dismissInstall() { localStorage.setItem('wisi-nodip','1'); document.getElementById('installBanner').classList.remove('visible'); }
 
-// oEmbed autofill — fires when user pastes a TikTok URL and clicks away
+// oEmbed autofill — tries multiple proxies with fallback
 async function autofillFromUrl(url) {
   if (!url || !url.includes('tiktok.com')) return;
   const fs = document.getElementById('fetchStatus');
+  const descField = document.getElementById('vdesc');
+  const creatorField = document.getElementById('vcreator');
   fs.textContent = 'Fetching caption from TikTok…';
-  try {
-    const endpoint = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
-    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(endpoint)}`;
-    const res = await fetch(proxy);
-    const wrapper = await res.json();
-    const data = JSON.parse(wrapper.contents);
-    const descField = document.getElementById('vdesc');
-    const creatorField = document.getElementById('vcreator');
-    if (data.title && !descField.value) {
-      descField.value = data.title;
+
+  const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+
+  // Try multiple proxies in order until one works
+  const proxies = [
+    `https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(oembedUrl)}`
+  ];
+
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) continue;
+      const raw = await res.text();
+
+      // allorigins wraps in {contents:...}, others return directly
+      let data;
+      try {
+        const parsed = JSON.parse(raw);
+        data = parsed.contents ? JSON.parse(parsed.contents) : parsed;
+      } catch { continue; }
+
+      if (!data || !data.title) continue;
+
+      if (!descField.value) descField.value = data.title;
+      if (!creatorField.value && data.author_name) creatorField.value = '@' + data.author_name;
+
       fs.textContent = 'Caption auto-filled ✓';
-    } else {
-      fs.textContent = 'URL detected — add context below';
-    }
-    if (data.author_name && !creatorField.value) {
-      creatorField.value = '@' + data.author_name;
-    }
-    setTimeout(() => { fs.textContent = ''; }, 3000);
-  } catch(e) {
-    fs.textContent = 'Could not auto-fill — paste the caption manually';
-    setTimeout(() => { fs.textContent = ''; }, 3000);
+      setTimeout(() => { fs.textContent = ''; }, 3000);
+      return;
+    } catch(e) { continue; }
   }
+
+  // All proxies failed — prompt manual entry
+  fs.textContent = 'Auto-fill unavailable — paste the caption below manually';
+  fs.style.color = 'var(--text2)';
+  setTimeout(() => { fs.textContent = ''; fs.style.color = 'var(--teal)'; }, 5000);
 }
 
 // Share target
