@@ -20,7 +20,15 @@
     --accent:#e8c97a; --accent2:#c4a558; --red:#e87a7a; --teal:#7ac4b8;
     --serif:'Instrument Serif',Georgia,serif; --sans:'DM Sans',sans-serif;
   }
-  body { background:var(--bg); color:var(--text); font-family:var(--sans); font-weight:300; min-height:100vh; overflow-x:hidden; }
+  :root.light {
+    --bg:#faf9f6; --bg2:#ffffff; --bg3:#f0ede8;
+    --border:rgba(0,0,0,0.08); --border-hover:rgba(0,0,0,0.2);
+    --text:#1a1a18; --text2:#5a5650; --text3:#9a9589;
+    --accent:#9a7820; --accent2:#7a5e10; --red:#c0392b; --teal:#1a7a6e;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); font-weight:300; min-height:100vh; overflow-x:hidden; transition:background 0.25s,color 0.25s; }
+  .theme-btn { background:none; border:1px solid var(--border); border-radius:99px; padding:5px 13px; font-size:11px; color:var(--text2); cursor:pointer; font-family:var(--sans); transition:all 0.15s; letter-spacing:0.03em; }
+  .theme-btn:hover { border-color:var(--border-hover); color:var(--text); }
 
   #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--bg3); border:1px solid var(--border-hover); border-radius:99px; padding:10px 20px; font-size:13px; color:var(--text); z-index:9999; transition:transform 0.3s; pointer-events:none; white-space:nowrap; }
   #toast.show { transform:translateX(-50%) translateY(0); }
@@ -119,6 +127,8 @@
   #map { flex:1; min-height:400px; }
   .leaflet-container { background:#1a1a1a !important; }
   .leaflet-tile { filter:brightness(0.82) saturate(0.6) hue-rotate(180deg) invert(1); }
+  :root.light .leaflet-tile { filter:brightness(1.05) saturate(0.9); }
+  :root.light .leaflet-container { background:#e8e4dc !important; }
   .leaflet-popup-content-wrapper { background:var(--bg2) !important; border:1px solid var(--border-hover) !important; border-radius:12px !important; box-shadow:0 8px 32px rgba(0,0,0,0.6) !important; color:var(--text) !important; font-family:var(--sans) !important; padding:0 !important; }
   .leaflet-popup-content { margin:0 !important; width:230px !important; }
   .leaflet-popup-tip { background:var(--bg2) !important; }
@@ -149,9 +159,12 @@
 <header>
   <div class="logo">Spot<em>vault</em></div>
   <div class="tagline">Every place has a story</div>
-  <div class="vtog">
-    <button class="vbtn active" id="btnC" onclick="setView('cards')">Cards</button>
-    <button class="vbtn" id="btnM" onclick="setView('map')">Map</button>
+  <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">Light</button>
+    <div class="vtog" style="margin-left:0">
+      <button class="vbtn active" id="btnC" onclick="setView('cards')">Cards</button>
+      <button class="vbtn" id="btnM" onclick="setView('map')">Map</button>
+    </div>
   </div>
 </header>
 
@@ -197,6 +210,20 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// Theme
+let _dark = localStorage.getItem('sv-theme') !== 'light';
+function _applyTheme() {
+  document.documentElement.classList.toggle('light', !_dark);
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = _dark ? 'Light' : 'Dark';
+}
+function toggleTheme() {
+  _dark = !_dark;
+  localStorage.setItem('sv-theme', _dark ? 'dark' : 'light');
+  _applyTheme();
+}
+_applyTheme();
+
 let places = JSON.parse(localStorage.getItem('spotvault-v1') || '[]');
 let filter = 'all', view = 'cards', map = null, markers = {}, dip = null;
 
